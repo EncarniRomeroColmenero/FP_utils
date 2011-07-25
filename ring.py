@@ -40,35 +40,27 @@ def fit_func(p, data, rsq):
 def find_peaks(arr, width=50):
     arr_fil = nd.filters.maximum_filter1d(arr, width)
     # original and filtered array are only equal at the peaks.
-    # peaks is an array of indices of the peak locations
-    peaks = np.nonzero( abs(arr-arr_fil) > 20.0 )[0]
-    # look for transitions to define peaks
-    pkdiff = np.diff(peaks)
-    peak_ind = np.where(pkdiff > 1)[0]
-    peak_list = []
+    # peaks is an array of indices of the peak locations.  
+    peaks = np.nonzero( arr == arr_fil )[0]
+    npeaks = len(peaks)
     flux_list = []
-    pk_start = 0
-    npeaks = 0
-    print peaks
-    print pkdiff
-    print peak_ind
-    if len(peak_ind) < 3:
-        for p in peak_ind:
-            peak_list.append(peaks[p])
-            flux_list.append(arr[peaks[p]])
-            npeaks = npeaks + 1
-    else:
-        for p in peak_ind:
-            p = p+1
-            ave = ma.sum(arr[pk_start:p]*peaks[pk_start:p])/ma.sum(peaks[pk_start:p])
-            peak_list.append(ave)
-            flux_list.append(arr[int(ave)])
-            npeaks = npeaks + 1
-            pk_start = p
+    for p in peaks:
+        flux_list.append(arr[p])
     # sort peaks in descending order of flux
     ind = np.argsort(np.array(flux_list))[::-1]
-    peak_list = np.array(peak_list)[ind]
+    peak_list = peaks[ind]
     return npeaks, peak_list
+
+# quick-n-dirty centroider
+def centroid(data, pos, width, x=None):
+    size = len(data)
+    if x == None:
+        x = np.arange(size)
+    l = pos-width
+    h = pos+width
+    if h >= size-1: h = size-1
+    dat = data[l:h]
+    return np.sum(dat*x[l:h])/np.sum(dat)
 
 print "Opening ds9...."
 disp = ds9.ds9()
@@ -93,40 +85,36 @@ ap_rad = 470.0
 mask_val = 0.0
 
 # find brightest ring and refine center
-minsize = 10
-pk_width = 30
+cutsize = 3
+cenwidth = 20
 
-#    xup = nd.filters.median_filter(fp_im[yc,xc:], size=minsize)
-xup = fp_im[yc-3:yc+3,xc:].sum(axis=0)
+# here we find peaks in the 4 cardinal directions, centroid the brightest one, and use the
+# results to fit for the ring center.  use image slices since median filtering doesn't appear
+# to be mask-aware.  the gaps were creating spurious peaks.  
+xup = fp_im[yc-cutsize:yc+cutsize,xc:].sum(axis=0)
 n_xup, xup_list = find_peaks(xup)
-print "XUP Nrings = %d" % n_xup
-for peak in xup_list:
-    print "\t R = %f" % peak
+xup_peak = centroid(xup, xup_list[0], cenwidth)
+print "XUP:  R = %f" % xup_peak
 
-#    xdown = nd.filters.median_filter(fp_im[yc,:xc], size=minsize)
-xdown = fp_im[yc-3:yc+3,:xc].sum(axis=0)
+xdown = fp_im[yc-cutsize:yc+cutsize,:xc].sum(axis=0)
 n_xdown, xdown_list = find_peaks(xdown[::-1])
-print "XDOWN Nrings = %d" % n_xdown
-for peak in xdown_list:
-    print "\t R = %f" % peak
+xdown_peak = centroid(xdown, xdown_list[0], cenwidth)
+print "XDOWN:  R = %f" % xdown_peak
     
-#    yup = nd.filters.median_filter(fp_im[yc:,xc], size=minsize)
-yup = fp_im[yc:,xc-3:xc+3].sum(axis=1)
+yup = fp_im[yc:,xc-cutsize:xc+cutsize].sum(axis=1)
 n_yup, yup_list = find_peaks(yup)
-print "YUP Nrings = %d" % n_yup
-for peak in yup_list:
-    print "\t R = %f" % peak
-    
-#    ydown = nd.filters.median_filter(fp_im[:yc,xc], size=minsize)
-ydown = fp_im[:yc,xc-3:xc+3].sum(axis=1)
-n_ydown, ydown_list = find_peaks(ydown[::-1])
-print "YDOWN Nrings = %d" % n_ydown
-for peak in ydown_list:
-    print "\t R = %f" % peak
+yup_peak = centroid(yup, yup_list[0], cenwidth)
+print "YUP:  R = %f" % yup_peak
 
-xc_new = 0.5*(xc+xup_list[0] + xc-xdown_list[0])
-yc_new = 0.5*(yc+yup_list[0] + yc-ydown_list[0])
-if np.sqrt( (xc-xc_new)**2 + (yc-yc_new)**2 ) > 15:
+ydown = fp_im[:yc,xc-cutsize:xc+cutsize].sum(axis=1)
+n_ydown, ydown_list = find_peaks(ydown[::-1])
+ydown_peak = centroid(ydown, ydown_list[0], cenwidth)
+print "YDOWN:  R = %f" % ydown_peak
+
+xc_new = 0.5*(xc+xup_peak + xc-xdown_peak)
+yc_new = 0.5*(yc+yup_peak + yc-ydown_peak)
+
+if np.sqrt( (xc-xc_new)**2 + (yc-yc_new)**2 ) > 25:
     print "Center moved too far."
 else:
     xc = xc_new
@@ -139,9 +127,7 @@ rsq = r**2
 
 # first use max location as center, then centroid from there
 max_r_i = prof.argmax()
-low_i = max_r_i-5
-high_i = max_r_i+6
-max_r = np.sum(r[low_i:high_i]*prof[low_i:high_i])/prof[low_i:high_i].sum()
+max_r = centroid(prof, max_r_i, cenwidth, x=r)
 pmax = prof[max_r_i]
 
 print "Max is %f at R %f (%d)" % (pmax, max_r, max_r_i)
