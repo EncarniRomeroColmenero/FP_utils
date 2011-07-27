@@ -1,6 +1,7 @@
 import numpy as np
 from scipy import special
 
+# analytic approximation for a voigt profile. 
 def qvoigt(x,amp,pos,fwhm,gam):
      """
     voigt profile
@@ -15,3 +16,10 @@ def qvoigt(x,amp,pos,fwhm,gam):
            special.wofz(2*np.sqrt(np.log(2.0))*(x-pos)/fwhm+1j* \
            np.sqrt(np.log(2.0))*gam).real
      return tmp
+
+# approximation to calculate FWHM of a voigt profile given its gaussian FWHM, gfwhm, and
+# lorentz parameter, gam.  good to at worst 0.0325% for pure lorentzian.
+def voigt_fwhm(gfwhm, gam):
+     lfwhm = 2*gam
+     return 0.5346*lfwhm + np.sqrt(0.2166*lfwhm**2 + gfwhm**2)
+     

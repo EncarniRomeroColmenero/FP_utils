@@ -9,7 +9,7 @@ import numpy.ma as ma
 import scipy.ndimage as nd
 import pylab as pl
 from radialProfile import azimuthalAverage
-from qvoigt import qvoigt
+from qvoigt import qvoigt, voigt_fwhm
 import ds9
 from scipy import optimize as opt
 
@@ -27,14 +27,17 @@ def FP_profile(im, xcen, ycen, Quadratic=False, trim_rad=None, mask=0):
     else:
         return prof, r
 
-# wrapper to fit a voigt profile to given data.
+# wrapper to fit a set of voigt profiles to given data.
 def fit_func(p, data, rsq):
-    pos = p[0]
-    amp = p[1]
-    fwhm = p[2]
-    gam = p[3]
-    back = p[4]
-    return np.sum( (data - back - qvoigt(rsq,amp,pos,fwhm,gam))**2 )
+    back = p[0]
+    func = 0.0
+    for i in range(1,len(p),4):
+        pos = p[i]
+        amp = p[i+1]
+        fwhm = p[i+2]
+        gam = p[i+3]
+        func = func +  qvoigt(rsq,amp,pos,fwhm,gam)
+    return np.sum( (data - back - func)**2 )
 
 # find peaks in a 1D array using the maximum filter technique given a specified filter width.
 def find_peaks(arr, width=50):
@@ -51,6 +54,35 @@ def find_peaks(arr, width=50):
     peak_list = peaks[ind]
     return npeaks, peak_list
 
+# here we find peaks in the 4 cardinal directions, centroid the brightest one, and use the
+# results to fit for the ring center.  use image slices since median filtering doesn't appear
+# to be mask-aware.  the gaps were creating spurious peaks.  
+def find_center(im, xc, yc, cutsize=5, tolerance=25):
+    xup = im[yc-cutsize:yc+cutsize,xc:].sum(axis=0)
+    n_xup, xup_list = find_peaks(xup)
+    xup_peak = centroid(xup, xup_list[0], cenwidth)
+
+    xdown = im[yc-cutsize:yc+cutsize,:xc].sum(axis=0)
+    n_xdown, xdown_list = find_peaks(xdown[::-1])
+    xdown_peak = centroid(xdown, xdown_list[0], cenwidth)
+    
+    yup = im[yc:,xc-cutsize:xc+cutsize].sum(axis=1)
+    n_yup, yup_list = find_peaks(yup)
+    yup_peak = centroid(yup, yup_list[0], cenwidth)
+
+    ydown = im[:yc,xc-cutsize:xc+cutsize].sum(axis=1)
+    n_ydown, ydown_list = find_peaks(ydown[::-1])
+    ydown_peak = centroid(ydown, ydown_list[0], cenwidth)
+
+    xc_new = 0.5*(xc+xup_peak + xc-xdown_peak)
+    yc_new = 0.5*(yc+yup_peak + yc-ydown_peak)
+
+    if np.sqrt( (xc-xc_new)**2 + (yc-yc_new)**2 ) > tolerance:
+        print "Center moved too far."
+        return xc, yc
+    else:
+        return xc_new, yc_new
+
 # quick-n-dirty centroider
 def centroid(data, pos, width, x=None):
     size = len(data)
@@ -62,88 +94,95 @@ def centroid(data, pos, width, x=None):
     dat = data[l:h]
     return np.sum(dat*x[l:h])/np.sum(dat)
 
-print "Opening ds9...."
-disp = ds9.ds9()
+if __name__=='__main__':
+    print "Opening ds9...."
+    disp = ds9.ds9()
 
-f = pyfits.open(sys.argv[1])
-hdu = f
-(data, header) = (hdu[0].data, hdu[0].header)
-f.close()
+    f = pyfits.open(sys.argv[1])
+    hdu = f
+    (data, header) = (hdu[0].data, hdu[0].header)
+    f.close()
 
-ysize, xsize = data.shape
+    ysize, xsize = data.shape
 
-# cut FP image down to square
-fp_im = data[:,(xsize-ysize)/2:(xsize+ysize)/2]
-disp.set_np2arr(fp_im, dtype=np.int32)
-# mask those gaps
-fp_im = ma.masked_less_equal(data[:,(xsize-ysize)/2:(xsize+ysize)/2], 0.0)
+    # cut FP image down to square
+    fp_im = data[:,(xsize-ysize)/2:(xsize+ysize)/2]
+    disp.set_np2arr(fp_im, dtype=np.int32)
+    # mask those gaps
+    fp_im = ma.masked_less_equal(data[:,(xsize-ysize)/2:(xsize+ysize)/2], 0.0)
 
-# first guess is the center of the aperture (assume 4x4 binning here)
-xc=513
-yc=502
-ap_rad = 470.0
-mask_val = 0.0
+    # first guess is the center of the aperture (assume 4x4 binning here)
+    xc=513
+    yc=502
+    ap_rad = 470.0
+    mask_val = 0.0
 
-# find brightest ring and refine center
-cutsize = 3
-cenwidth = 20
+    # this is a rough guesstimate to be replace with real calibrated value
+    lam_rsq = 24.0/470.0**2
 
-# here we find peaks in the 4 cardinal directions, centroid the brightest one, and use the
-# results to fit for the ring center.  use image slices since median filtering doesn't appear
-# to be mask-aware.  the gaps were creating spurious peaks.  
-xup = fp_im[yc-cutsize:yc+cutsize,xc:].sum(axis=0)
-n_xup, xup_list = find_peaks(xup)
-xup_peak = centroid(xup, xup_list[0], cenwidth)
-print "XUP:  R = %f" % xup_peak
+    # find brightest ring and refine center
+    cutsize = 3
+    cenwidth = 20
 
-xdown = fp_im[yc-cutsize:yc+cutsize,:xc].sum(axis=0)
-n_xdown, xdown_list = find_peaks(xdown[::-1])
-xdown_peak = centroid(xdown, xdown_list[0], cenwidth)
-print "XDOWN:  R = %f" % xdown_peak
+    prof, r = FP_profile(fp_im, xc, yc, Quadratic=False, trim_rad=500, mask=mask_val)
+    rsq = r**2
+
+    npeaks, peak_list = find_peaks(prof, width=40)
+
+    print "Found %d rings at:" % npeaks
+    for peak in peak_list:
+        try:
+            cen_peak = centroid(prof, peak, cenwidth)
+            if cen_peak == nan: raise
+        except:
+            cen_peak = peak
+        print "\t R %f" % cen_peak
+        disp.set("regions command {circle %f %f %f # color=red}" % (xc, yc, cen_peak))
+
+    pl.figure()
+ 
+    max_r = peak_list[0]
+    pmax = prof[max_r]
+    back = 2500.0
+    fwhm = 10.0
+    gam = 10.0
+    init = [back]
+    bounds = [(-10000,60000)]
+
+    # keep 6 brightest
+    if len(peak_list) > 6:
+        peaks = peak_list[0:6]
+    else:
+        peaks = peak_list
     
-yup = fp_im[yc:,xc-cutsize:xc+cutsize].sum(axis=1)
-n_yup, yup_list = find_peaks(yup)
-yup_peak = centroid(yup, yup_list[0], cenwidth)
-print "YUP:  R = %f" % yup_peak
+    for peak in peaks:
+        if peak > 30:
+            # position
+            init.append(peak**2)
+            bounds.append((0,500**2))
+            # amplitude
+            init.append(prof[peak])
+            bounds.append((0,6550000))
+            # FWHM
+            init.append(fwhm**2)
+            bounds.append((0.0,400))
+            # gamma
+            init.append(gam)
+            bounds.append((0.0,100.0))
 
-ydown = fp_im[:yc,xc-cutsize:xc+cutsize].sum(axis=1)
-n_ydown, ydown_list = find_peaks(ydown[::-1])
-ydown_peak = centroid(ydown, ydown_list[0], cenwidth)
-print "YDOWN:  R = %f" % ydown_peak
+    #fit = opt.fmin_slsqp(fit_func, init, args=(prof, rsq), bounds=bounds)
+    #fit = opt.fmin_tnc(fit_func, init, args=(prof, rsq), bounds=bounds, approx_grad=True)
+    fit = opt.fmin_powell(fit_func, init, args=(prof, rsq), ftol=0.00001)
 
-xc_new = 0.5*(xc+xup_peak + xc-xdown_peak)
-yc_new = 0.5*(yc+yup_peak + yc-ydown_peak)
+    fit_v = fit[0]
+    print "Background = %f" % fit_v
+    for i in range(1,len(fit),4):
+        fwhm = lam_rsq*voigt_fwhm(fit[i+2], fit[i+3])
+        print "\tR = %.3f, Amp = %.3f, Gauss FWHM = %.3f, Gamma = %.3f, FWHM = %.3f" % (np.sqrt(fit[i]), fit[i+1], lam_rsq*fit[i+2], fit[i+3], fwhm)
+        fit_v = fit_v + qvoigt(rsq, fit[i+1], fit[i], fit[i+2], fit[i+3])
 
-if np.sqrt( (xc-xc_new)**2 + (yc-yc_new)**2 ) > 25:
-    print "Center moved too far."
-else:
-    xc = xc_new
-    yc = yc_new
-    
-print xc, yc
-
-prof, r = FP_profile(fp_im, xc, yc, Quadratic=False, trim_rad=ap_rad, mask=mask_val)
-rsq = r**2
-
-# first use max location as center, then centroid from there
-max_r_i = prof.argmax()
-max_r = centroid(prof, max_r_i, cenwidth, x=r)
-pmax = prof[max_r_i]
-
-print "Max is %f at R %f (%d)" % (pmax, max_r, max_r_i)
-disp.set("regions command {circle %f %f %f # color=red}" % (xc, yc, max_r))
-
-init = [max_r**2, pmax, 150.0, 10.0, 500.0]
-
-fit = opt.fmin_powell(fit_func, init, args=(prof, rsq), xtol=0.0001, ftol=0.00001)
-
-print "R = %.3f, Amp = %.3f, FWHM = %.3f, Gam = %.3f, Background = %.3f" % (np.sqrt(fit[0]), fit[1], np.sqrt(fit[2]), fit[3], fit[4])
-
-fit_v = fit[4] + qvoigt(rsq, fit[1], fit[0], fit[2], fit[3])
-
-pl.figure()
-pl.plot(r, prof)
-pl.plot(r, fit_v)
-pl.plot([max_r, max_r], [0, pmax])
-pl.show()
+    pl.plot(lam_rsq*rsq, prof)
+    pl.plot(lam_rsq*rsq, fit_v)
+#    pl.plot([max_r, max_r], [0, pmax])
+    pl.show()
 
