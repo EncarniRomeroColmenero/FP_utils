@@ -101,6 +101,9 @@ if __name__=='__main__':
     f = pyfits.open(sys.argv[1])
     hdu = f
     (data, header) = (hdu[0].data, hdu[0].header)
+    etalon = int(header['ET-STATE'].split()[3])
+    etwave_key = "ET%dWAVE0" % etalon
+    cenwave = float(header[etwave_key])
     f.close()
 
     ysize, xsize = data.shape
@@ -114,28 +117,27 @@ if __name__=='__main__':
     # first guess is the center of the aperture (assume 4x4 binning here)
     xc=513
     yc=502
-    ap_rad = 470.0
+    ap_rad = 485.0
     mask_val = 0.0
 
-    # this is a rough guesstimate to be replace with real calibrated value
-    lam_rsq = 24.0/470.0**2
+    # convert r-squared to angstroms.
+    lam_rsq = (cenwave/6563.0)*24.0/ap_rad**2
 
     # find brightest ring and refine center
     cutsize = 3
     cenwidth = 20
 
     prof, r = FP_profile(fp_im, xc, yc, Quadratic=False, trim_rad=500, mask=mask_val)
-    rsq = r**2
+    rsq = cenwave - lam_rsq*r**2
 
     npeaks, peak_list = find_peaks(prof, width=40)
 
     print "Found %d rings at:" % npeaks
     for peak in peak_list:
-        try:
-            cen_peak = centroid(prof, peak, cenwidth)
-            if cen_peak == nan: raise
-        except:
+        cen_peak = centroid(prof, peak, cenwidth)
+        if np.isnan(cen_peak):
             cen_peak = peak
+
         print "\t R %f" % cen_peak
         disp.set("regions command {circle %f %f %f # color=red}" % (xc, yc, cen_peak))
 
@@ -144,10 +146,9 @@ if __name__=='__main__':
     max_r = peak_list[0]
     pmax = prof[max_r]
     back = 2500.0
-    fwhm = 10.0
-    gam = 10.0
+    fwhm = 1.0
+    gam = 1.0
     init = [back]
-    bounds = [(-10000,60000)]
 
     # keep 6 brightest
     if len(peak_list) > 6:
@@ -158,17 +159,13 @@ if __name__=='__main__':
     for peak in peaks:
         if peak > 30:
             # position
-            init.append(peak**2)
-            bounds.append((0,500**2))
+            init.append(cenwave-lam_rsq*peak**2)
             # amplitude
             init.append(prof[peak])
-            bounds.append((0,6550000))
             # FWHM
-            init.append(fwhm**2)
-            bounds.append((0.0,400))
+            init.append(fwhm)
             # gamma
             init.append(gam)
-            bounds.append((0.0,100.0))
 
     #fit = opt.fmin_slsqp(fit_func, init, args=(prof, rsq), bounds=bounds)
     #fit = opt.fmin_tnc(fit_func, init, args=(prof, rsq), bounds=bounds, approx_grad=True)
@@ -177,12 +174,12 @@ if __name__=='__main__':
     fit_v = fit[0]
     print "Background = %f" % fit_v
     for i in range(1,len(fit),4):
-        fwhm = lam_rsq*voigt_fwhm(fit[i+2], fit[i+3])
-        print "\tR = %.3f, Amp = %.3f, Gauss FWHM = %.3f, Gamma = %.3f, FWHM = %.3f" % (np.sqrt(fit[i]), fit[i+1], lam_rsq*fit[i+2], fit[i+3], fwhm)
+        fwhm = voigt_fwhm(fit[i+2], fit[i+3])
+        print "\tR = %.3f, Amp = %.3f, Gauss FWHM = %.3f, Gamma = %.3f, FWHM = %.3f" % (fit[i], fit[i+1], fit[i+2], fit[i+3], fwhm)
         fit_v = fit_v + qvoigt(rsq, fit[i+1], fit[i], fit[i+2], fit[i+3])
 
-    pl.plot(lam_rsq*rsq, prof)
-    pl.plot(lam_rsq*rsq, fit_v)
+    pl.plot(rsq, prof)
+    pl.plot(rsq, fit_v)
 #    pl.plot([max_r, max_r], [0, pmax])
     pl.show()
 
