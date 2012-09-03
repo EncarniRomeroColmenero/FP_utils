@@ -6,9 +6,7 @@ import pyfits
 import numpy as np
 import pylab as py
 from ring import *
-import ds9
 
-disp = ds9.ds9()
 file = sys.argv[1]
 
 hdu = pyfits.open(file)
@@ -19,8 +17,6 @@ ysize, xsize = data.shape
 
 # cut FP image down to square
 fp_im = data[:,(xsize-ysize)/2:(xsize+ysize)/2]
-if disp:
-    disp.set_np2arr(fp_im, dtype=np.int32)
 
 # mask those gaps
 fp_im = ma.masked_less_equal(data[:,(xsize-ysize)/2:(xsize+ysize)/2], 0.0)
