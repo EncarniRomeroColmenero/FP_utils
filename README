@@ -1,0 +1,6 @@
+This is a set of python scripts for analyzing RSS Fabry-Perot data from SALT.  
+It is in the early stages of development with the goal of being able to do
+full end-to-end analysis within python either standalone or within pyraf/pysalt.
+
+T. E. Pickering
+04 Sept 2012
