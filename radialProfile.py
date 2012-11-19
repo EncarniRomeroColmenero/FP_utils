@@ -1,13 +1,14 @@
 import numpy as np
 import numpy.ma as ma
 
+
 def azimuthalAverage(image, center=None, maskval=0):
     """
     calculate the azimuthally averaged radial profile.
 
     image - 2D image
-    center - [x,y] pixel coordinates used as the center. the default is 
-             None which then uses the center of the image (including 
+    center - [x,y] pixel coordinates used as the center. the default is
+             None which then uses the center of the image (including
              fractional pixels).
     maskval - threshold value for including data in the profile
     """
@@ -17,7 +18,8 @@ def azimuthalAverage(image, center=None, maskval=0):
 
     # default to image center if no center given
     if not center:
-        center = np.array([(x.max()-x.min())/2.0, (x.max()-x.min())/2.0])
+        center = np.array([(x.max() - x.min()) / 2.0,
+                           (x.max() - x.min()) / 2.0])
 
     r = np.hypot(x - center[0], y - center[1])
 
@@ -25,8 +27,10 @@ def azimuthalAverage(image, center=None, maskval=0):
     ind = np.argsort(r.flat)
     i_sorted = image.flat[ind]
 
-    # for FP data we need to at least mask out data at 0 or less so the gaps get ignored.
-    # also want to mask out area outside of aperture so use given maskval to do that.
+    # for FP data we need to at least mask out data at
+    # 0 or less so the gaps get ignored.
+    # also want to mask out area outside of aperture
+    # so use given maskval to do that.
     i_ma = ma.masked_less_equal(i_sorted, maskval)
     mask = ma.getmask(i_ma)
 
@@ -47,6 +51,6 @@ def azimuthalAverage(image, center=None, maskval=0):
     tbin = csim[rind[1:]] - csim[rind[:-1]]
 
     # calculate and return profile of mean within each bin
-    radial_prof = tbin/nr_tot
-    
+    radial_prof = tbin / nr_tot
+
     return radial_prof

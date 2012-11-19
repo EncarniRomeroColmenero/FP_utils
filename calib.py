@@ -3,9 +3,9 @@
 import sys
 import os
 import numpy as np
-import pylab as pl
 
-from scipy import optimize as opt
+#import pylab as pl
+#from scipy import optimize as opt
 
 from ring import *
 
@@ -27,13 +27,13 @@ try:
         if len(nums) == 1:
             list.append(int(nums[0]))
         else:
-            for i in range(int(nums[0]), int(nums[1])+1):
+            for i in range(int(nums[0]), int(nums[1]) + 1):
                 list.append(i)
 
 except:
     print "Specify file range as <low>-<high>, e.g. 25-35."
     exit()
-    
+
 date = os.getcwd().split('/')[-1]
 
 outfile = "calib_rings.dat"
@@ -57,26 +57,29 @@ for i in list:
     z = header[z_key]
     etname = header[name_key]
     cenwave = float(header[etwave_key])
-    
-    good, wave, prof, fit, pars = fit_rings(fits, flatfile="/home/ccd/FP_utils/sky_flat.dat")
+
+    good, wave, prof, fit, pars = \
+        fit_rings(fits, flatfile="/home/ccd/FP_utils/sky_flat.dat")
 
     if good:
         resid = prof - fit
         rms = resid.std()
         max = prof.max()
-        out.write("%s %s %s %5d %5d %5d %10.3f %10.3f %10.3f %10.3f %10.3f %10.3f\n" % (fits,
-                                                                              lamp,
-                                                                              etname,
-                                                                              x,
-                                                                              y,
-                                                                              z,
-                                                                              max,
-                                                                              pars['R'][0],
-                                                                              pars['Amplitude'][0],
-                                                                              rms,
-                                                                              pars['Gamma'][0],
-                                                                              pars['FWHM'][0]))
-    
+        out.write(
+            "%s %s %s %5d %5d %5d %10.3f %10.3f %10.3f %10.3f %10.3f %10.3f\n"
+            % (fits,
+               lamp,
+               etname,
+               x,
+               y,
+               z,
+               max,
+               pars['R'][0],
+               pars['Amplitude'][0],
+               rms,
+               pars['Gamma'][0],
+               pars['FWHM'][0]))
+
         pfile = "%s_prof.dat" % fits
         np.savetxt(pfile, np.transpose((wave, prof, fit, resid)))
 
@@ -84,7 +87,8 @@ out.close()
 
 #x, peaks = np.loadtxt(outfile, usecols=(4, 6), unpack=True)
 #init = [peaks.max(), 0.2, x.mean()]
-#fit = opt.fmin_powell(focus_func, init, args=(peaks, x), ftol=0.00001, full_output=False, disp=False)
+#fit = opt.fmin_powell(focus_func, init, args=(peaks, x),
+#ftol=0.00001, full_output=False, disp=False)
 #print ""
 #print "Peak flux = %.3f" % fit[0]
 #print "Best %s = %.2f" % (axis.upper(), fit[2])
@@ -96,4 +100,3 @@ out.close()
 #pl.plot(xp, f)
 #pl.xlabel(axis.upper())
 #pl.show()
-

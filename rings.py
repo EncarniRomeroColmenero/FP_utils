@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import sys
-import os
 import glob
 import numpy as np
 import pylab as pl
@@ -27,24 +26,25 @@ for file in files:
     z = header[z_key]
     etname = header[name_key]
     cenwave = float(header[etwave_key])
-    
+
     good, wave, prof, fit, pars = fit_rings(file, flatfile=None)
     if good:
-	resid = prof - fit
-	rms = resid.std()
+        resid = prof - fit
+        rms = resid.std()
         max = prof.max()
-	out.write("%s %s %5d %5d %5d %10.3f %10.3f %10.3f %10.3f %10.3f %10.3f\n" % (file,
-									      etname,
-									      x,
-									      y,
-									      z,
-                                                                              max,
-									      pars['R'][0],
-									      pars['Amplitude'][0],
-									      rms,
-									      pars['Gamma'][0],
-									      pars['FWHM'][0]))
-    
-	pfile = "%s_prof.dat" % file
-	np.savetxt(pfile, np.transpose((wave, prof, fit, resid)))
-    
+        out.write(
+            "%s %s %5d %5d %5d %10.3f %10.3f %10.3f %10.3f %10.3f %10.3f\n" %
+            (file,
+             etname,
+             x,
+             y,
+             z,
+             max,
+             pars['R'][0],
+             pars['Amplitude'][0],
+             rms,
+             pars['Gamma'][0],
+             pars['FWHM'][0]))
+
+        pfile = "%s_prof.dat" % file
+        np.savetxt(pfile, np.transpose((wave, prof, fit, resid)))
