@@ -67,48 +67,50 @@ for i in list:
     etname = header[name_key]
     cenwave = float(header[etwave_key])
 
-    good, wave, prof, fit, pars = \
-        fit_rings(fits,
-                  flatfile="/home/ccd/FP_utils/sky_flat.dat")
+    good, wave, prof, fit, pars = fit_rings(fits)
 
     if good:
         resid = prof - fit
+        mask_resid = np.ma.masked_where(np.abs(wave - pars['R'][0]) 
+                                        < 5, resid)
         rms = resid.std()
+        mask_rms = mask_resid.std()
         max = prof.max()
         out.write(
-            "%s %s %5d %5d %5d %10.3f %10.3f %10.3f %10.3f %10.3f %10.3f\n"
-            % (fits,
-               etname,
-               x,
-               y,
-               z,
-               max,
-               pars['R'][0],
-               pars['Amplitude'][0],
-               rms,
-               pars['Gamma'][0],
-               pars['FWHM'][0]))
+        "%s %s %5d %5d %5d %10.3f %10.3f %10.3f %10.3f %10.3f %10.3f %10.3f\n"
+        % (fits,
+           etname,
+           x,
+           y,
+           z,
+           max,
+           pars['R'][0],
+           pars['Amplitude'][0],
+           rms,
+           mask_rms,
+           pars['Gamma'][0],
+           pars['FWHM'][0]))
 
         pfile = "%s_prof.dat" % fits
         np.savetxt(pfile, np.transpose((wave, prof, fit, resid)))
 
 out.close()
 
-x, peaks = np.loadtxt(outfile, usecols=(col, 7), unpack=True)
-init = [peaks.max(), 0.2, x.mean()]
+x, mrms = np.loadtxt(outfile, usecols=(col, 9), unpack=True)
+init = [mrms.min(), 0.2, x.mean()]
 fit = opt.fmin_powell(focus_func,
                       init,
-                      args=(peaks, x),
+                      args=(mrms, x),
                       ftol=0.00001,
                       full_output=False,
                       disp=False)
 
 print ""
-print "Peak flux = %.3f" % fit[0]
+print "Min RMS = %.3f" % fit[0]
 print "Best %s = %.2f" % (axis.upper(), fit[2])
 print "Scale = %.3f" % fit[1]
 pl.subplot(111)
-pl.scatter(x, peaks)
+pl.scatter(x, mrms)
 xp = range(int(x.min()), int(x.max()))
 f = fit[0] - fit[1] * (xp - fit[2]) ** 2
 pl.plot(xp, f)
