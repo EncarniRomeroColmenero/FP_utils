@@ -96,7 +96,7 @@ for i in list:
 
 out.close()
 
-x, mrms = np.loadtxt(outfile, usecols=(col, 9), unpack=True)
+x, mrms = np.loadtxt(outfile, usecols=(col, 8), unpack=True)
 init = [mrms.min(), 0.2, x.mean()]
 fit = opt.fmin_powell(focus_func,
                       init,
