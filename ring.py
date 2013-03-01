@@ -147,7 +147,7 @@ def fit_rings(file, trim_rad=470, disp=None):
     # mask those gaps
     fp_im = ma.masked_less_equal(data[:, (xsize-ysize)/2:(xsize+ysize)/2], 0.0)
 
-    # first guess is the center of the aperture (assume 4x4 binning here)
+    # define center based on FP ghost imaging with special mask
     xc = 2052 / binning
     yc = 2008 / binning
     mask_val = 0.0
