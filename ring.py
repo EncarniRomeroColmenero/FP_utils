@@ -223,10 +223,12 @@ def fit_rings(file, trim_rad=470, disp=None):
 
     #fit = opt.fmin_slsqp(fit_func, init, args=(prof, wave),
     #                     bounds=bounds)
-    fit, nfeval, rc = opt.fmin_tnc(fit_func, init, args=(prof, wave), epsilon=0.001,
-                                   bounds=bounds, approx_grad=True, disp=0)
+    fit, nfeval, rc = opt.fmin_tnc(fit_func, init, args=(prof, wave), epsilon=0.0001,
+                                   bounds=bounds, approx_grad=True, disp=0, maxfun=1000)
     #fit = opt.fmin_powell(fit_func, init, args=(prof, wave),
     #                      ftol=0.00001, full_output=False, disp=False)
+
+    print "Return code: %s" % opt.tnc.RCSTRINGS[rc]
 
     pars = {}
     fit_v = fit[0]
@@ -249,7 +251,19 @@ def fit_rings(file, trim_rad=470, disp=None):
     return True, wave, prof, fit_v, pars
 
 if __name__ == '__main__':
-    good, rsq, prof, fit, pars = fit_rings(sys.argv[1])
+    filenum = sys.argv[1]
+
+    try:
+        filenum = int(filenum)
+    except:
+        print "Specify file as a number, e.g. 25"
+        exit()
+
+    date = os.getcwd().split('/')[-1]
+
+    fits = "mbxpP%s%04d.fits" % (date, filenum)
+
+    good, rsq, prof, fit, pars = fit_rings(fits)
     resid = prof - fit
     rms = resid.std()
     print "\tR = %.3f, Amp = %.3f, RMS = %.3f, Gamma = %.3f, FWHM = %.3f" % \
