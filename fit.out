@@ -1,0 +1,32 @@
+After 14 iterations the fit converged.
+final sum of squares of residuals : 0.0016708
+rel. change during last iteration : -1.33931e-10
+
+degrees of freedom    (FIT_NDF)                        : 465
+rms of residuals      (FIT_STDFIT) = sqrt(WSSR/ndf)    : 0.00189555
+variance of residuals (reduced chisquare) = WSSR/ndf   : 3.59311e-06
+
+Final set of parameters            Asymptotic Standard Error
+=======================            ==========================
+
+a               = 1.00475          +/- 0.000347     (0.03453%)
+b               = -0.00027789      +/- 1.107e-05    (3.985%)
+c               = -1.26563e-07     +/- 2.054e-09    (1.623%)
+d               = 9.76049e-10      +/- 1.633e-11    (1.673%)
+e               = -2.22584e-12     +/- 3.586e-14    (1.611%)
+
+
+correlation matrix of the fit parameters:
+
+               a      b      c      d      e      
+a               1.000 
+b              -0.864  1.000 
+c               0.658 -0.916  1.000 
+d              -0.597  0.865 -0.992  1.000 
+e               0.550 -0.820  0.975 -0.995  1.000 
+gnuplot> plot "sky.dat" using 1:2, f(x)
+gnuplot> show f(x)
+              ^
+         Unrecognized option. See 'help show'.
+
+gnuplot> f(x) = a + b*x + c*x**3 + d*x**4 + e*x**5
