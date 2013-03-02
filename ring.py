@@ -195,7 +195,7 @@ def fit_rings(file, trim_rad=470, disp=None):
 
     max_r = peak_list[0]
     pmax = prof[max_r]
-    back = 100.0
+    back = 500.0
     fwhm = 6.0
     gam = 2.0
     init = [back]
@@ -224,7 +224,7 @@ def fit_rings(file, trim_rad=470, disp=None):
     #fit = opt.fmin_slsqp(fit_func, init, args=(prof, wave),
     #                     bounds=bounds)
     fit, nfeval, rc = opt.fmin_tnc(fit_func, init, args=(prof, wave), epsilon=0.0001,
-                                   bounds=bounds, approx_grad=True, disp=0, maxfun=1000)
+                                   bounds=bounds, approx_grad=True, disp=0, maxfun=5000)
     #fit = opt.fmin_powell(fit_func, init, args=(prof, wave),
     #                      ftol=0.00001, full_output=False, disp=False)
 
