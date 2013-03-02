@@ -150,6 +150,8 @@ def fit_rings(file, trim_rad=470, disp=None):
     # define center based on FP ghost imaging with special mask
     xc = 2052 / binning
     yc = 2008 / binning
+    trim_rad *= 4/binning
+
     mask_val = 0.0
     f = {}
     if cenwave < 5200:
