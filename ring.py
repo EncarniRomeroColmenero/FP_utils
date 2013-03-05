@@ -65,7 +65,7 @@ def find_peaks(arr, width=50):
     peak_list = peaks[ind]
     p = []
     for peak in peak_list:
-        if peak > 30:
+        if peak > 20:
             p.append(peak)
     npeaks = len(p)
     return npeaks, p
@@ -148,7 +148,7 @@ def fit_rings(file, trim_rad=470, disp=None):
     fp_im = ma.masked_less_equal(data[:, (xsize-ysize)/2:(xsize+ysize)/2], 0.0)
 
     # define center based on FP ghost imaging with special mask
-    xc = 2052 / binning
+    xc = 2054 / binning
     yc = 2008 / binning
     trim_rad *= 4/binning
 
@@ -197,15 +197,15 @@ def fit_rings(file, trim_rad=470, disp=None):
 
     max_r = peak_list[0]
     pmax = prof[max_r]
-    back = 500.0
-    fwhm = 6.0
-    gam = 2.0
+    back = 250.0
+    fwhm = 5.0
+    gam = 1.0
     init = [back]
     bounds = [(0.0, 2.0e8)]
 
-    # keep 6 brightest
-    if len(peak_list) > 6:
-        peaks = peak_list[0:6]
+    # keep 3 brightest
+    if len(peak_list) > 3:
+        peaks = peak_list[0:3]
     else:
         peaks = peak_list
 
@@ -218,19 +218,19 @@ def fit_rings(file, trim_rad=470, disp=None):
         bounds.append((0.0, 1.0e8))
         # FWHM
         init.append(fwhm)
-        bounds.append((0.1, 30.0))
+        bounds.append((0.1, 20.0))
         # gamma
         init.append(gam)
         bounds.append((0.0, 5.0))
 
     #fit = opt.fmin_slsqp(fit_func, init, args=(prof, wave),
     #                     bounds=bounds)
-    fit, nfeval, rc = opt.fmin_tnc(fit_func, init, args=(prof, wave), epsilon=0.0001,
-                                   bounds=bounds, approx_grad=True, disp=0, maxfun=5000)
-    #fit = opt.fmin_powell(fit_func, init, args=(prof, wave),
-    #                      ftol=0.00001, full_output=False, disp=False)
+    #fit, nfeval, rc = opt.fmin_tnc(fit_func, init, args=(prof, wave), epsilon=0.0001,
+    #                               bounds=bounds, approx_grad=True, disp=0, maxfun=5000)
+    fit = opt.fmin_powell(fit_func, init, args=(prof, wave),
+                          ftol=0.00001, full_output=False, disp=False)
 
-    print "Return code: %s" % opt.tnc.RCSTRINGS[rc]
+    #print "Return code: %s" % opt.tnc.RCSTRINGS[rc]
 
     pars = {}
     fit_v = fit[0]
