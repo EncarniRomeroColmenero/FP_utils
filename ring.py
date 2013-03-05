@@ -157,18 +157,23 @@ def fit_rings(file, trim_rad=470, disp=None):
     if cenwave < 5200:
         f['MR'] = 22149.6
         f['LR'] = 22795.92
+        f['TF'] = 24360.32
     if cenwave > 6500 and cenwave < 6600:
         f['MR'] = 22713.0
         f['LR'] = 24191.40
+        f['TF'] = 24360.32
     if cenwave >= 6600 and cenwave < 6700:
         f['MR'] = 22848.0
         f['LR'] = 24169.32
+        f['TF'] = 23830.20
     if cenwave >= 6700 and cenwave < 6900:
         f['MR'] = 22828.92
         f['LR'] = 24087.68
+        f['TF'] = 24553.32
     else:
         f['MR'] = 22828.92
         f['LR'] = 24400.32
+        f['TF'] = 24553.32
 
     # find brightest ring and refine center
     cutsize = 3
