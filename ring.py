@@ -1,4 +1,22 @@
 #!/usr/bin/env python
+"""
+                               ring
+
+a collection of utilities for analyzing fabry-perot calibration rings
+
+Author                     Version             Date
+--------------------------------------------------------
+TE Pickering                 0.1             20121012
+
+TODO
+--------------------------------------------------------
+need to incorporate this into saltfirst
+
+Updates
+--------------------------------------------------------
+20130115 - enhance __main__ so that it simply takes an image number as an
+           argument
+"""
 
 import sys
 import os
@@ -14,11 +32,25 @@ import ds9
 from scipy import optimize as opt
 
 
-# wrap calculating the radial profile to include options for using r or r**2
-# for the profile.  want to display vs. r, but fit voigt profile vs. r**2.
-# also provide options to trim radius to exclude outside the FOV and to
-# set a mask value.
 def FP_profile(im, xcen, ycen, trim_rad=None, mask=0):
+    """
+    calculate the radial profile and include options for using r or r**2
+    for the profile.  might want to display vs. r, but fit voigt profile vs.
+    r**2. also provide options to trim radius to exclude outside the FOV and
+    to set a mask value.
+
+    Parameters
+    ----------
+    im : 2D ndarray containing image (usually read in using pyfits)
+    xcen : float - X position of ring center
+    ycen : float - Y position of ring center
+    trim_rad : float - maximum radial extent of profile
+    mask : int - data value to use for masking bad data
+
+    Returns
+    -------
+    prof, r : numpy arrays containing radial profile and radii, respectively
+    """
     prof = azimuthalAverage(im, center=[xcen, ycen], maskval=mask)
     r = np.arange(len(prof))
     if trim_rad:
@@ -27,8 +59,21 @@ def FP_profile(im, xcen, ycen, trim_rad=None, mask=0):
     return prof, r
 
 
-# wrapper to fit a set of voigt profiles to given data.
 def fit_func(p, data, rsq):
+    """
+    wrapper to fit a set of voigt profiles to given data.
+
+    Parameters
+    ----------
+    p : array or list containing the fit parameters
+    data : numpy array containing data to fit
+    rsq : numpy array containing the wavelength or r**2 values for the
+          data being fit
+
+    Returns
+    -------
+    likelihood value as a float
+    """
     back = p[0]
     func = 0.0
     for i in range(1, len(p), 4):
@@ -40,8 +85,20 @@ def fit_func(p, data, rsq):
     return np.sum((data - back - func) ** 2)
 
 
-# parabolic function to fit for focus and parallelism
 def focus_func(p, data, x):
+    """
+    parabolic function to use for fitting focus or parallelism
+
+    Parameters
+    ----------
+    p : array or list containing fit parameters
+    data: numpy array containing data to fit
+    x : numpy array containing x values for data to fit
+
+    Returns
+    -------
+    likehood value as float
+    """
     peak = p[0]
     a = p[1]
     b = p[2]
@@ -49,9 +106,21 @@ def focus_func(p, data, x):
     return np.sum((data - func) ** 2)
 
 
-# find peaks in a 1D array using the maximum filter technique
-# given a specified filter width.
 def find_peaks(arr, width=50):
+    """
+    find peaks in a 1D array using the maximum filter technique
+    given a specified filter width.
+
+    Parameters
+    ----------
+    arr : numpy array of radial profile
+    width : integer width of filter
+
+    Returns
+    -------
+    npeaks : integer number of peaks found
+    p : list of peak positions
+    """
     arr_fil = nd.filters.maximum_filter1d(arr, width)
     # original and filtered array are only equal at the peaks.
     # peaks is an array of indices of the peak locations.
@@ -71,11 +140,25 @@ def find_peaks(arr, width=50):
     return npeaks, p
 
 
-# here we find peaks in the 4 cardinal directions, centroid the brightest one,
-# and use the results to fit for the ring center.  use image slices since
-# median filtering doesn't appear to be mask-aware.  the gaps were creating
-# spurious peaks.
 def find_center(im, xc, yc, cutsize=5, tolerance=25):
+    """
+    somewhat deprecated routine to find peaks in the 4 cardinal directions,
+    centroid the brightest one, and use the results to fit for the ring center.
+    use image slices since median filtering doesn't appear to be mask-aware.
+    the gaps were creating spurious peaks.
+
+    Parameters
+    ----------
+    im : ndarray containing image data to analyze
+    xc : initial guess for X position of center (float)
+    yc : initial guess for Y position of center (float)
+    cutsize : width of cuts to use to look for peaks (int)
+    tolerance : maximum allowed movement from initial position (int)
+
+    Returns
+    -------
+    xc, yc: X and Y positions of ring center (float)
+    """
     xup = im[yc-cutsize:yc+cutsize, xc:].sum(axis=0)
     n_xup, xup_list = find_peaks(xup)
     xup_peak = centroid(xup, xup_list[0], cenwidth)
@@ -102,8 +185,21 @@ def find_center(im, xc, yc, cutsize=5, tolerance=25):
         return xc_new, yc_new
 
 
-# quick-n-dirty centroider
 def centroid(data, pos, width, x=None):
+    """
+    quick-n-dirty centroider
+
+    Parameters
+    ----------
+    data : numpy array containing data to centroid
+    pos : initial guess for centroid position
+    width : range above and below pos to include in centroid calculation
+    x : x values of data. use np.arange() if None
+
+    Returns
+    -------
+    float centroid position calculated via center-of-mass
+    """
     size = len(data)
     if x is None:
         x = np.arange(size)
@@ -114,8 +210,20 @@ def centroid(data, pos, width, x=None):
     dat = data[l:h]
     return np.sum(dat*x[l:h])/np.sum(dat)
 
-# flat-field a profile using analytic fit
+
 def flatprof(profile, binning):
+    """
+    flat-field a profile using analytic fit
+
+    Parameters
+    ----------
+    profile : numpy array containing profile to flatten
+    binning : binning of the data the profile was extracted from
+
+    Returns
+    -------
+    numpy array of flat-field corrected profile
+    """
     apix = 0.1267*binning
     r = np.arange(len(profile))*apix
     a = 1.00475
@@ -126,7 +234,27 @@ def flatprof(profile, binning):
     flat = a + b*r + c*r**3 + d*r**4 + e*r**5
     return profile/flat
 
+
 def fit_rings(file, trim_rad=470, disp=None):
+    """
+    main routine to take a FITS file, read it in, azimuthally average it,
+    find the rings, and then fit voigt profiles to them.
+
+    Parameters
+    ----------
+    file : string filename of FITS file to analyze
+    trim_rad : int maximum radial extent of profile
+    disp : boolean to control DS9 display of image
+
+    Returns
+    -------
+    list containing:
+        boolean - success of finding peaks or not
+        numpy array - wavelengths of profile
+        numpy array - radial flux profile data
+        numpy array - best-fit radial flux profile
+        dict - parameters of best-fit
+    """
     hdu = pyfits.open(file)
     (data, header) = (hdu[1].data, hdu[0].header)
     etalon = int(header['ET-STATE'].split()[3])
@@ -150,6 +278,8 @@ def fit_rings(file, trim_rad=470, disp=None):
     # define center based on FP ghost imaging with special mask
     xc = 2054 / binning
     yc = 2008 / binning
+    # we use the 4x4 version of trim_rad since the vast majority of FP
+    # data is taken with 4x4 binning
     trim_rad *= 4/binning
 
     mask_val = 0.0
@@ -175,15 +305,13 @@ def fit_rings(file, trim_rad=470, disp=None):
         f['LR'] = 24400.32
         f['TF'] = 24553.32
 
-    # find brightest ring and refine center
-    cutsize = 3
-    cenwidth = 20
-
+    # get the radial profile and flatten it with a default QTH flat profile
     prof, r = FP_profile(fp_im, xc, yc, trim_rad=trim_rad, mask=mask_val)
     prof = flatprof(prof, binning)
 
     wave = cenwave/np.sqrt(1.0 + (r*binning/f[etname])**2)
 
+    # find the peaks and bail out if none found
     npeaks, peak_list = find_peaks(prof, width=40)
     if npeaks < 1:
         print "No peaks found."
@@ -228,10 +356,18 @@ def fit_rings(file, trim_rad=470, disp=None):
         init.append(gam)
         bounds.append((0.0, 5.0))
 
+    ### keep these around in case we want to try again someday
+    #
     #fit = opt.fmin_slsqp(fit_func, init, args=(prof, wave),
     #                     bounds=bounds)
-    #fit, nfeval, rc = opt.fmin_tnc(fit_func, init, args=(prof, wave), epsilon=0.0001,
-    #                               bounds=bounds, approx_grad=True, disp=0, maxfun=5000)
+    #fit, nfeval, rc = opt.fmin_tnc(fit_func, init, args=(prof, wave),
+    #                               epsilon=0.0001,
+    #                               bounds=bounds,
+    #                               approx_grad=True,
+    #                               disp=0,
+    #                               maxfun=5000)
+
+    # good ol' powell method FTW
     fit = opt.fmin_powell(fit_func, init, args=(prof, wave),
                           ftol=0.00001, full_output=False, disp=False)
 
@@ -257,6 +393,8 @@ def fit_rings(file, trim_rad=470, disp=None):
 
     return True, wave, prof, fit_v, pars
 
+
+# for running from the command line which we do for now in normal operation
 if __name__ == '__main__':
     filenum = sys.argv[1]
 
