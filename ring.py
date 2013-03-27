@@ -318,6 +318,7 @@ def fit_rings(file, trim_rad=470, disp=None):
         return False, np.empty(1), np.empty(1), np.empty(1), np.empty(1)
 
     print "Found %d rings at:" % npeaks
+    cenwidth = 20
     for peak in peak_list:
         cen_peak = centroid(prof, peak, cenwidth)
         if np.isnan(cen_peak):
