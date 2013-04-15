@@ -9,15 +9,18 @@ import numpy as np
 
 from ring import *
 
-if len(sys.argv) != 2:
-    print "Usage: calib <range>"
+if len(sys.argv) != 3:
+    print "Usage: calib <linewave><range>"
     print ""
-    print "E.g.:  calib 48-58"
-    print "       calib 48,59-69,75-83"
+    print "E.g.:  calib 6678.28 48-58"
+    print "       calib 6678.28 48,59-69,75-83"
 
     exit()
 
-flist = sys.argv[1]
+line = sys.argv[1]
+flist = sys.argv[2]
+
+trim_rad = 470
 
 try:
     list = []
@@ -37,14 +40,14 @@ except:
 date = os.getcwd().split('/')[-1]
 
 outfile = "calib_rings.dat"
-out = open(outfile, "w")
-#pl.figure()
+out = open(outfile, "a")
 
 for i in list:
     fits = "mbxpP%s%04d.fits" % (date, i)
-    print fits
     hdu = pyfits.open(fits)
     (data, header) = (hdu[1].data, hdu[0].header)
+    dateobs = header['DATE-OBS']
+    time = header['TIME-OBS']
     lamp = header['LAMPID']
     etalon = int(header['ET-STATE'].split()[3])
     etwave_key = "ET%dWAVE0" % etalon
@@ -57,46 +60,36 @@ for i in list:
     z = header[z_key]
     etname = header[name_key]
     cenwave = float(header[etwave_key])
+    binning = int(header['CCDSUM'].split()[0])
 
-    good, wave, prof, fit, pars = \
-        fit_rings(fits, flatfile="/home/ccd/FP_utils/sky_flat.dat")
+    ysize, xsize = data.shape
 
-    if good:
-        resid = prof - fit
-        rms = resid.std()
-        max = prof.max()
-        out.write(
-            "%s %s %s %5d %5d %5d %10.3f %10.3f %10.3f %10.3f %10.3f %10.3f\n"
-            % (fits,
-               lamp,
-               etname,
-               x,
-               y,
-               z,
-               max,
-               pars['R'][0],
-               pars['Amplitude'][0],
-               rms,
-               pars['Gamma'][0],
-               pars['FWHM'][0]))
+    # cut FP image down to square
+    fp_im = data[:, (xsize-ysize)/2:(xsize+ysize)/2]
 
-        pfile = "%s_prof.dat" % fits
-        np.savetxt(pfile, np.transpose((wave, prof, fit, resid)))
+    # mask those gaps
+    fp_im = ma.masked_less_equal(data[:, (xsize-ysize)/2:(xsize+ysize)/2], 0.0)
+
+    # define center based on FP ghost imaging with special mask
+    xc = 2054 / binning
+    yc = 2008 / binning
+    # we use the 4x4 version of trim_rad since the vast majority of FP
+    # data is taken with 4x4 binning
+    trim_rad *= 4/binning
+
+    mask_val = 0.0
+
+    # get the radial profile and flatten it with a default QTH flat profile
+    prof, r = FP_profile(fp_im, xc, yc, trim_rad=trim_rad, mask=mask_val)
+    prof = flatprof(prof, binning)
+
+    # find the peaks and bail out if none found
+    npeaks, peak_list = find_peaks(prof, width=40)
+    if npeaks > 0:
+        cen_peak = centroid(prof, peak_list[0], 20)
+        if np.isnan(cen_peak):
+            cen_peak = peak_list[0]
+        print "%s ring at R = %f" % (fits, cen_peak)
+        out.write("%s %s %s %s %s %f %s\n" % (fits, dateobs, time, lamp, line, cen_peak, z))
 
 out.close()
-
-#x, peaks = np.loadtxt(outfile, usecols=(4, 6), unpack=True)
-#init = [peaks.max(), 0.2, x.mean()]
-#fit = opt.fmin_powell(focus_func, init, args=(peaks, x),
-#ftol=0.00001, full_output=False, disp=False)
-#print ""
-#print "Peak flux = %.3f" % fit[0]
-#print "Best %s = %.2f" % (axis.upper(), fit[2])
-#print "Scale = %.3f" % fit[1]
-#pl.subplot(111)
-#pl.scatter(x, peaks)
-#xp = range(int(x.min()), int(x.max()))
-#f = fit[0] - fit[1]*(xp-fit[2])**2
-#pl.plot(xp, f)
-#pl.xlabel(axis.upper())
-#pl.show()
