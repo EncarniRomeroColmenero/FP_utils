@@ -32,8 +32,8 @@ import ds9
 from scipy import optimize as opt
 
 linelist = {}
-linelist['Ne'] = [6382.991, 6402.248, 6506.529, 6532.882, 6598.953, 6678.277,
-		  6717.043, 6929.467, 7032.413, 7173.938, 7245.167, 7438.898]
+linelist['Ne'] = np.array([6382.991, 6402.248, 6506.529, 6532.882, 6598.953, 6678.277,
+			   6717.043, 6929.467, 7032.413, 7173.938, 7245.167, 7438.898])
 
 def FP_profile(im, xcen, ycen, trim_rad=None, mask=0):
     """
@@ -108,29 +108,6 @@ def focus_func(p, data, x):
     func = peak - a * (x - b) ** 2
     return np.sum((data - func) ** 2)
 
-
-def calib_func(p, data, line):
-    """
-    likelihood function used to fit wavelength as a function of gap, Z, and
-    ring radius, R.  pass data as list-like (R, Z).
-
-    Parameters
-    ----------
-    P : array-like containing fit parameters
-    data: tuple of numpy arrays containing radii and Z values, (R, Z)
-    line: wavelengths of the calibration lines
-
-    Returns
-    -------
-    likelihood as float
-    """
-    a = p[0]
-    b = p[1]
-    f = p[2]
-    r = data[0]
-    z = data[1]
-    func = (a + b * z)/np.sqrt(1.0 + (r / f) ** 2)
-    return np.sum((line - func) ** 2)
 
 def find_peaks(arr, width=50):
     """
