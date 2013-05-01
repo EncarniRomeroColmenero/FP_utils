@@ -96,6 +96,8 @@ if __name__ == '__main__':
 
 	for i in list:
 	    fits = "mbxgpP%s%04d.fits" % (date, i)
+	    if not os.path.exists(fits):
+		fits = "mbxpP%s%04d.fits" % (date, i)
 	    hdu = pyfits.open(fits)
 	    (data, header) = (hdu[1].data, hdu[0].header)
 	    dateobs = header['DATE-OBS']
