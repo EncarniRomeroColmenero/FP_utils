@@ -21,19 +21,19 @@ Updates
 import sys
 import os
 import pyfits
-import math
 import numpy as np
 import numpy.ma as ma
 import scipy.ndimage as nd
 import pylab as pl
 from radialProfile import azimuthalAverage
 from qvoigt import qvoigt, voigt_fwhm
-import ds9
 from scipy import optimize as opt
 
 linelist = {}
-linelist['Ne'] = np.array([6382.991, 6402.248, 6506.529, 6532.882, 6598.953, 6678.277,
-			   6717.043, 6929.467, 7032.413, 7173.938, 7245.167, 7438.898])
+linelist['Ne'] = np.array([6382.991, 6402.248, 6506.529, 6532.882,
+                           6598.953, 6678.277, 6717.043, 6929.467,
+                           7032.413, 7173.938, 7245.167, 7438.898])
+
 
 def FP_profile(im, xcen, ycen, trim_rad=None, mask=0):
     """
@@ -81,9 +81,9 @@ def fit_func(p, data, rsq):
     func = 0.0
     for i in range(1, len(p), 4):
         pos = p[i]
-        amp = p[i+1]
-        fwhm = p[i+2]
-        gam = p[i+3]
+        amp = p[i + 1]
+        fwhm = p[i + 2]
+        gam = p[i + 3]
         func = func + qvoigt(rsq, amp, pos, fwhm, gam)
     return np.sum((data - back - func) ** 2)
 
@@ -162,26 +162,27 @@ def find_center(im, xc, yc, cutsize=5, tolerance=25):
     -------
     xc, yc: X and Y positions of ring center (float)
     """
-    xup = im[yc-cutsize:yc+cutsize, xc:].sum(axis=0)
+    cenwidth = 30.0
+    xup = im[yc - cutsize:yc + cutsize, xc:].sum(axis=0)
     n_xup, xup_list = find_peaks(xup)
     xup_peak = centroid(xup, xup_list[0], cenwidth)
 
-    xdown = im[yc-cutsize:yc+cutsize, :xc].sum(axis=0)
+    xdown = im[yc - cutsize:yc + cutsize, :xc].sum(axis=0)
     n_xdown, xdown_list = find_peaks(xdown[::-1])
     xdown_peak = centroid(xdown, xdown_list[0], cenwidth)
 
-    yup = im[yc:, xc-cutsize:xc+cutsize].sum(axis=1)
+    yup = im[yc:, xc - cutsize:xc + cutsize].sum(axis=1)
     n_yup, yup_list = find_peaks(yup)
     yup_peak = centroid(yup, yup_list[0], cenwidth)
 
-    ydown = im[:yc, xc-cutsize:xc+cutsize].sum(axis=1)
+    ydown = im[:yc, xc - cutsize:xc + cutsize].sum(axis=1)
     n_ydown, ydown_list = find_peaks(ydown[::-1])
     ydown_peak = centroid(ydown, ydown_list[0], cenwidth)
 
-    xc_new = 0.5*(xc+xup_peak + xc-xdown_peak)
-    yc_new = 0.5*(yc+yup_peak + yc-ydown_peak)
+    xc_new = 0.5 * (xc + xup_peak + xc - xdown_peak)
+    yc_new = 0.5 * (yc + yup_peak + yc - ydown_peak)
 
-    if np.sqrt((xc-xc_new)**2 + (yc-yc_new)**2) > tolerance:
+    if np.sqrt((xc - xc_new) ** 2 + (yc - yc_new) ** 2) > tolerance:
         print "Center moved too far."
         return xc, yc
     else:
@@ -206,12 +207,12 @@ def centroid(data, pos, width, x=None):
     size = len(data)
     if x is None:
         x = np.arange(size)
-    l = pos-width
-    h = pos+width
-    if h >= size-1:
-        h = size-1
+    l = pos - width
+    h = pos + width
+    if h >= size - 1:
+        h = size - 1
     dat = data[l:h]
-    return np.sum(dat*x[l:h])/np.sum(dat)
+    return np.sum(dat * x[l:h]) / np.sum(dat)
 
 
 def flatprof(profile, binning):
@@ -227,15 +228,15 @@ def flatprof(profile, binning):
     -------
     numpy array of flat-field corrected profile
     """
-    apix = 0.1267*binning
-    r = np.arange(len(profile))*apix
+    apix = 0.1267 * binning
+    r = np.arange(len(profile)) * apix
     a = 1.00475
     b = -0.00027789
     c = -1.26563e-07
     d = 9.76049e-10
     e = -2.22584e-12
-    flat = a + b*r + c*r**3 + d*r**4 + e*r**5
-    return profile/flat
+    flat = a + b * r + c * r ** 3 + d * r ** 4 + e * r ** 5
+    return profile / flat
 
 
 def fit_rings(file, trim_rad=470, disp=None):
@@ -272,18 +273,22 @@ def fit_rings(file, trim_rad=470, disp=None):
     ysize, xsize = data.shape
 
     # cut FP image down to square
-    fp_im = data[:, (xsize-ysize)/2:(xsize+ysize)/2]
+    fp_im = data[:,
+                 (xsize - ysize) / 2:
+                 (xsize + ysize) / 2]
     if disp:
         disp.set_np2arr(fp_im, dtype=np.int32)
     # mask those gaps
-    fp_im = ma.masked_less_equal(data[:, (xsize-ysize)/2:(xsize+ysize)/2], 0.0)
+    fp_im = ma.masked_less_equal(data[:,
+                                      (xsize - ysize) / 2:
+                                      (xsize + ysize) / 2], 0.0)
 
     # define center based on FP ghost imaging with special mask
     xc = 2054 / binning
     yc = 2008 / binning
     # we use the 4x4 version of trim_rad since the vast majority of FP
     # data is taken with 4x4 binning
-    trim_rad *= 4/binning
+    trim_rad *= 4 / binning
 
     mask_val = 0.0
     f = {}
@@ -312,7 +317,7 @@ def fit_rings(file, trim_rad=470, disp=None):
     prof, r = FP_profile(fp_im, xc, yc, trim_rad=trim_rad, mask=mask_val)
     prof = flatprof(prof, binning)
 
-    wave = cenwave/np.sqrt(1.0 + (r*binning/f[etname])**2)
+    wave = cenwave / np.sqrt(1.0 + (r * binning / f[etname]) ** 2)
 
     # find the peaks and bail out if none found
     npeaks, peak_list = find_peaks(prof, width=40)
@@ -332,8 +337,8 @@ def fit_rings(file, trim_rad=470, disp=None):
             disp.set("regions command {circle %f %f %f # color=red}" %
                      (xc, yc, cen_peak))
 
-    max_r = peak_list[0]
-    pmax = prof[max_r]
+    # max_r = peak_list[0]
+    # pmax = prof[max_r]
     back = 250.0
     fwhm = 5.0
     gam = 1.0
@@ -348,8 +353,8 @@ def fit_rings(file, trim_rad=470, disp=None):
 
     for peak in peaks:
         # position
-        init.append(cenwave/np.sqrt(1.0 + (peak*binning/f[etname])**2))
-        bounds.append((cenwave-30, cenwave+30))
+        init.append(cenwave / np.sqrt(1.0 + (peak * binning / f[etname]) ** 2))
+        bounds.append((cenwave - 30, cenwave + 30))
         # amplitude
         init.append(prof[peak])
         bounds.append((0.0, 1.0e8))
@@ -387,13 +392,14 @@ def fit_rings(file, trim_rad=470, disp=None):
     pars['Gamma'] = []
     pars['FWHM'] = []
     for i in range(1, len(fit), 4):
-        fwhm = voigt_fwhm(fit[i+2], fit[i+3])
+        fwhm = voigt_fwhm(fit[i + 2], fit[i + 3])
         pars['R'].append(fit[i])
-        pars['Amplitude'].append(fit[i+1])
-        pars['Gauss FWHM'].append(fit[i+2])
-        pars['Gamma'].append(fit[i+3])
+        pars['Amplitude'].append(fit[i + 1])
+        pars['Gauss FWHM'].append(fit[i + 2])
+        pars['Gamma'].append(fit[i + 3])
         pars['FWHM'].append(fwhm)
-        fit_v = fit_v + qvoigt(wave, fit[i+1], fit[i], fit[i+2], fit[i+3])
+        fit_v = fit_v + qvoigt(wave, fit[i + 1], fit[i],
+                               fit[i + 2], fit[i + 3])
 
     return True, wave, prof, fit_v, pars
 

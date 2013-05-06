@@ -167,8 +167,9 @@ if __name__ == '__main__':
                 if np.isnan(cen_peak):
                     cen_peak = peak_list[0]
                 print "%s ring at R = %f" % (fits, cen_peak)
-                out.write("%s %s %s %s %f %s\n" % (dateobs, time, lamp,
-                                                   line, cen_peak, z))
+                if cen_peak < 452.0:
+                    out.write("%s %s %s %s %f %s\n" % (dateobs, time, lamp,
+                                                       line, cen_peak, z))
 
         out.close()
 
