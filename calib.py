@@ -58,13 +58,13 @@ def calibrate(l, r, z, time):
     -------
     results as dict
     """
-    if np.abs(time).max() > 0.25:
-        init = [6680.0, 0.2, 21000.0, 0.0]
+    if np.abs(time).max() > 0.2:
+        init = [l.min(), 0.2, 22600.0, 0.0]
         fit = opt.fmin_powell(calib_func, init,
                               args=((r, z, time), l), ftol=0.00001)
         results = dict(zip(['A', 'B', 'F', 'T'], fit))
     else:
-        init = [6680.0, 0.2, 21000.0]
+        init = [l.min(), 0.2, 22600.0]
         fit = opt.fmin_powell(calib_func, init,
                               args=((r, z), l), ftol=0.00001)
         results = dict(zip(['A', 'B', 'F'], fit))
@@ -108,7 +108,7 @@ if __name__ == '__main__':
 
     if not os.path.exists(outfile):
         out = open(outfile, "w")
-        out.write("# time  lamp  line  R  Z\n")
+        out.write("# time  lamp  line  cen  R  Z\n")
 
         for i in list:
             fits = "mbxgpP%s%04d.fits" % (date, i)
@@ -163,13 +163,14 @@ if __name__ == '__main__':
             # find the peaks and bail out if none found
             npeaks, peak_list = ring.find_peaks(prof, width=40)
             if npeaks > 0:
-                cen_peak = ring.centroid(prof, peak_list[0], 20)
+                cen_peak = ring.centroid(prof, peak_list[0], 15)
                 if np.isnan(cen_peak):
                     cen_peak = peak_list[0]
                 print "%s ring at R = %f" % (fits, cen_peak)
                 if cen_peak < 452.0:
-                    out.write("%s %s %s %s %f %s\n" % (dateobs, time, lamp,
-                                                       line, cen_peak, z))
+                    out.write("%s %s %s %s %f %f %s\n" % (dateobs, time, lamp,
+                                                          line, cenwave,
+                                                          cen_peak, z))
 
         out.close()
 
@@ -194,8 +195,17 @@ if __name__ == '__main__':
     func = (a + t * td + b * z) / np.sqrt(1.0 + (r / f) ** 2)
     resid = func - l
     print "RMS: %.3f" % resid.std()
-    pl.scatter(z, resid)
-    pl.xlabel("Z")
-    pl.ylabel("$\delta\lambda$ ($\AA$)", fontsize=16)
-    pl.title("FP Calibration Residuals")
+    f, (ax1, ax2, ax3) = pl.subplots(3, 1)
+    ax1.scatter(z, resid)
+    ax1.set_xlabel("Z")
+    ax1.set_ylabel("$\delta\lambda$ $(\AA)$")
+    ax1.set_title("FP Calibration Residuals")
+    ax2.scatter(td, resid)
+    ax2.set_xlabel("$\Delta T$ (hrs)")
+    ax2.set_ylabel("$\delta\lambda$ $(\AA)$")
+    ax3.scatter(r, resid)
+    ax3.set_xlabel("R")
+    ax3.set_ylabel("$\delta\lambda$ $(\AA)$")
+    wm = pl.get_current_fig_manager()
+    wm.window.resize(640, 960)
     pl.show()
