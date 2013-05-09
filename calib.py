@@ -133,7 +133,7 @@ if __name__ == '__main__':
             binning = int(header['CCDSUM'].split()[0])
 
             lines = ring.linelist[lamp]
-            line = lines[(lines > cenwave - 25) & (lines < cenwave)][0]
+            line = lines[(lines > cenwave - 25) & (lines < cenwave + 25)][0]
 
             ysize, xsize = data.shape
 
