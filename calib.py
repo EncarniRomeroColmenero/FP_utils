@@ -207,5 +207,5 @@ if __name__ == '__main__':
     ax3.set_xlabel("R")
     ax3.set_ylabel("$\delta\lambda$ $(\AA)$")
     wm = pl.get_current_fig_manager()
-    wm.window.resize(640, 960)
+    wm.window.geometry("640x960+0+0")
     pl.show()

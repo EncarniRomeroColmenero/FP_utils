@@ -345,25 +345,21 @@ def fit_rings(file, trim_rad=470, disp=None):
     init = [back]
     bounds = [(0.0, 2.0e8)]
 
-    # keep 3 brightest
-    if len(peak_list) > 3:
-        peaks = peak_list[0:3]
-    else:
-        peaks = peak_list
+    # keep brightest
+    peak = peak_list[0]
 
-    for peak in peaks:
-        # position
-        init.append(cenwave / np.sqrt(1.0 + (peak * binning / f[etname]) ** 2))
-        bounds.append((cenwave - 30, cenwave + 30))
-        # amplitude
-        init.append(prof[peak])
-        bounds.append((0.0, 1.0e8))
-        # FWHM
-        init.append(fwhm)
-        bounds.append((0.1, 20.0))
-        # gamma
-        init.append(gam)
-        bounds.append((0.0, 5.0))
+    # position
+    init.append(cenwave / np.sqrt(1.0 + (peak * binning / f[etname]) ** 2))
+    bounds.append((cenwave - 30, cenwave + 30))
+    # amplitude
+    init.append(prof[peak])
+    bounds.append((0.0, 1.0e8))
+    # FWHM
+    init.append(fwhm)
+    bounds.append((0.1, 20.0))
+    # gamma
+    init.append(gam)
+    bounds.append((0.0, 5.0))
 
     ### keep these around in case we want to try again someday
     #
