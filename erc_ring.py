@@ -19,11 +19,12 @@ Updates
            argument
 """
 
-import sys
-import os
+import sys, argparse
+import os, errno
 import pyfits
 import numpy as np
 import numpy.ma as ma
+import array
 import scipy.ndimage as nd
 import pylab as pl
 from radialProfile import azimuthalAverage
@@ -303,7 +304,7 @@ def fit_rings(file, trim_rad=470, disp=None):
     xc = 2054 / binning
     yc = 2008 / binning
 
-    print "FP ghost ring centre at x= %.1f y= %.1f" % (xc+280, yc)
+#    print "FP ring centre should be at x= %.1f y= %.1f" % (xc+280, yc)
 
     #Find the list of rings:
 
@@ -323,7 +324,7 @@ def fit_rings(file, trim_rad=470, disp=None):
        
     if sxc >0 and syc > 0:
 
-        print "Using centre at x= %.1f y= %.1f" % (sxc, syc)
+        print "Found ring centre at x= %.1f y= %.1f" % (sxc, syc)
         xc=sxc-280
         yc=syc
         
@@ -340,10 +341,10 @@ def fit_rings(file, trim_rad=470, disp=None):
         deltaX=int(3.6*(syc-yc0))
         deltaY=int(4.7*((sxc)-xc0))
 
-        print "With this new centre, recommend dX= %1d, dY=%1d" % (deltaX, deltaY)
+#        print "With this new centre, recommend dX= %1d, dY=%1d" % (deltaX, deltaY)
 
     else:
-        
+        print "Found ring centre at x= %.1f y= %.1f" % (sxc, syc)        
         print "Using FP ghost ring centre at x= %.1f y= %.1f" % (xc+280, yc)
     
     # we use the 4x4 version of trim_rad since the vast majority of FP
@@ -366,6 +367,10 @@ def fit_rings(file, trim_rad=470, disp=None):
         f['TF'] = 23830.20
     if cenwave >= 6700 and cenwave < 6900:
         f['MR'] = 22828.92
+        f['LR'] = 24087.68
+        f['TF'] = 24553.32
+    if cenwave >= 7300 and cenwave < 7700:
+        f['MR'] = 22864.06
         f['LR'] = 24087.68
         f['TF'] = 24553.32
     else:
@@ -464,45 +469,173 @@ def fit_rings(file, trim_rad=470, disp=None):
 
 # for running from the command line which we do for now in normal operation
 if __name__ == '__main__':
-    filenum = sys.argv[1]
+
+
+    parser = argparse.ArgumentParser(description='Argument list for erc_ring.py')
+    parser.add_argument('-flat','--flat', help='Flat file',required=False)
+    parser.add_argument('-ring','--ring',help='Ring file or start of range', required=True)
+    parser.add_argument('-xEnd','--xEnd',help='Last file number of X-range', required=False)
+    parser.add_argument('-yEnd','--yEnd',help='Last file number of Y-range', required=False)
+    args = parser.parse_args()
+
+
+    startnum = int(args.ring)
 
     try:
-        filenum = int(filenum)
+        xnum = int(args.xEnd)
     except:
-        print "Specify file as a number, e.g. 25"
-        exit()
+        xnum=0
 
-    date = os.getcwd().split('/')[-1]
+    try:
+        ynum = int(args.yEnd)
+    except:
+        ynum=0
 
-    fits = "mbxgpP%s%04d.fits" % (date, filenum)
-    flat = "mbxgpP%s%04d.fits" % (date, 22)
+    try:
+        flatnum = int(args.flat)
+    except:
+        flatnum=0
 
-    ffits='f'+fits
-    print flat
-    saltflat(fits,ffits,'',flat, clobber='yes',verbose='no')
+    lastnum=startnum
+    xplot=0
+    yplot=0
 
-    fpfile='p'+ffits
-    saltfpprep(ffits,fpfile,'',clobber='yes',verbose='no')
+    if xnum <> 0: 
+        lastnum=xnum
+        xplot=1
+    if ynum <> 0: 
+        lastnum=ynum
+        yplot=1
+    if flatnum == 0: flatnum=2
 
-    maskedfile='m'+fpfile
-    saltfpmask(fpfile,maskedfile,'',axc=798,ayc=503,arad=450,clobber='yes', verbose='no')
+# For now, delete the file outparams 'cos it makes a mess when plotting a different range. Will optimize code.
 
-    good, rsq, prof, fit, pars = fit_rings(maskedfile)
-    resid = prof - fit
-    rms = resid.std()
-    print "\tR = %.3f, Amp = %.3f, RMS = %.3f, Gamma = %.3f, FWHM = %.3f" % \
-          (pars['R'][0],
-           pars['Amplitude'][0],
-           rms,
-           pars['Gamma'][0],
-           pars['FWHM'][0])
-    pl.figure()
-    pl.subplot(211)
-    pl.plot(rsq, prof, label="Profile")
-    pl.plot(rsq, fit, label="Fit")
-    pl.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
-              ncol=2, mode="expand", borderaxespad=0.)
-    pl.subplot(212)
-    pl.plot(rsq, resid, label="Profile - Fit")
-    pl.legend(loc=1)
-    pl.show()
+    try:
+        os.remove('outparams')
+    except OSError as e:
+        if e.errno != errno.ENOENT: # errno.ENOENT = no such file or directory
+            raise
+
+    for filenum in range(startnum, lastnum+1):
+
+        date = os.getcwd().split('/')[-1]
+
+        fits = "mbxgpP%s%04d.fits" % (date, filenum)
+        flat = "mbxgpP%s%04d.fits" % (date, flatnum)
+
+        ffits='f'+fits
+        fpfile='p'+ffits
+        maskedfile='m'+fpfile
+        
+
+        if (not os.path.isfile(maskedfile)): 
+             saltflat(fits,ffits,'',flat, clobber='yes',verbose='no')
+
+             saltfpprep(ffits,fpfile,'',clobber='yes',verbose='no')
+
+             saltfpmask(fpfile,maskedfile,'',axc=798,ayc=503,arad=450,clobber='yes', verbose='no')
+
+          
+
+        good, rsq, prof, fit, pars = fit_rings(maskedfile)
+        resid = prof - fit
+        rms = resid.std()
+
+             
+        hdu = pyfits.open(fits)
+        (data, header) = (hdu[0].data, hdu[0].header)
+        etalon = int(header['ET-STATE'].split()[3])
+        hetalon_x = "ET%dX" % etalon
+        hetalon_y = "ET%dY" % etalon
+        hetalon_z = "ET%dZ" % etalon
+
+        etalon_x=int(header[hetalon_x])
+        etalon_y=int(header[hetalon_y])
+        etalon_z=int(header[hetalon_z])
+
+        if os.path.isfile('outparams'): 
+            try:
+                outparams=open('outparams','a')
+                
+            except IOError, e:
+                print 'Failed to open the ring file'
+
+
+        else:
+            try:
+                outparams=open('outparams','w+')
+                
+            except IOError, e:
+                print 'Failed to open the ring file'
+
+            outparams.write("File  X   Y   Z    R       Amp      RMS    Gamma FWHM \n")
+
+
+        outparams.write("  %i %i %i %i %.3f %.3f %.3f %.3f %.3f \n" % \
+                            (filenum, etalon_x, etalon_y, etalon_z, pars['R'][0],
+                             pars['Amplitude'][0],
+                             rms,
+                             pars['Gamma'][0],
+                             pars['FWHM'][0]))
+
+        outparams.close()
+
+        print "\tR = %.3f, Amp = %.3f, RMS = %.3f, Gamma = %.3f, FWHM = %.3f \n" % \
+            (pars['R'][0],
+             pars['Amplitude'][0],
+             rms,
+             pars['Gamma'][0],
+             pars['FWHM'][0])
+
+
+    if (lastnum == startnum):
+        pl.figure()
+        pl.subplot(211)
+        pl.plot(rsq, prof, label="Profile")
+        pl.plot(rsq, fit, label="Fit")
+        pl.legend(bbox_to_anchor=(0., 1.02, 1., .102), loc=3,
+                  ncol=2, mode="expand", borderaxespad=0.)
+        pl.subplot(212)
+        pl.plot(rsq, resid, label="Profile - Fit")
+        pl.legend(loc=1)
+        pl.title(fits)
+        pl.show()
+
+    else:
+        print "\n\nThe fit results are stored in file outparams, but will be overwritten next time you run the code.\n"
+        
+        try:
+            outparams=open('outparams','r+')
+
+        except IOError, e:
+            print 'Failed to open the ring file'
+            exit()
+        
+        content=outparams.readline()
+
+#        print content
+
+        arr=[]
+
+
+        data=np.genfromtxt('outparams', skip_header=1)
+
+        
+
+        pl.figure()        
+#        pl.subplot(2,1,1)
+        if xplot==1:
+            pl.plot(data[:,1],data[:,8],'bo')
+            pl.xlabel="X setting"
+            pl.ylabel="FHWM"
+        elif yplot==1:
+            pl.plot(data[:,2],data[:,8],'bo')
+            pl.xlabel="Y setting"
+            pl.ylabel="FHWM"
+
+#        pl.subplot(2,1,2)
+#        pl.plot(data[:,1],data[:,8],'bo')
+        pl.show()
+
+
+    exit()
