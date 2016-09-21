@@ -518,6 +518,7 @@ if __name__ == '__main__':
 
     for filenum in range(startnum, lastnum+1):
 
+# glitch - this expects the working directory name to be the date! 
         date = os.getcwd().split('/')[-1]
 
         fits = "mbxgpP%s%04d.fits" % (date, filenum)

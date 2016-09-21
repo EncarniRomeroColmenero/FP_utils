@@ -2,7 +2,7 @@ import numpy as np
 import os, errno
 from PyQt4 import QtGui,QtCore
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg
+from matplotlib.backends.backend_qt4 import NavigationToolbar2QT
 from pyraf import iraf
 import pyfits
 from iraf import pysalt

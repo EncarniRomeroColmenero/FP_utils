@@ -2,13 +2,13 @@ import numpy as np
 import os, errno
 from PyQt4 import QtGui,QtCore
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QTAgg
+from matplotlib.backends.backend_qt4 import NavigationToolbar2QT
+from FpRingWidget import FpRingWidget
+from FpParallWidget import FpParallWidget
 from pyraf import iraf
 import pyfits
 from iraf import pysalt
 from saltgui import MplCanvas
-from FpRingWidget import FpRingWidget
-from FpParallWidget import FpParallWidget
 from erc_ring import fit_rings
 
 class FpWidget (QtGui.QWidget):
