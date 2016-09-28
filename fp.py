@@ -1,10 +1,14 @@
 #GUI stuff
+import os
 import sys, argparse
 from PyQt4 import QtGui
 
 from pyraf import iraf
 from iraf import pysalt
-sys.path.insert(0, '/home/ccd/erc/FP_utils/')
+
+# Add the parent directory as the first path in the PATH variable.
+# This is necessary as otherwise files from PySALT will be used instead of files from this package.
+sys.path.insert(0, os.path.abspath(os.path.join(__file__, os.pardir)))
 
 from FpWidget import FpWidget
 
@@ -18,7 +22,7 @@ def main(ring,flat):
 
 
     #create GUI
-        app=QtGui.QApplication([])        
+        app=QtGui.QApplication([])
 #        aw=FpWidget(12,1)
         aw=FpWidget(ring,flat)
 #        aw.setMinimumHeight(400)
@@ -33,7 +37,7 @@ def main(ring,flat):
 
 
 
-if __name__ == "__main__": 
+if __name__ == "__main__":
 
 
     parser = argparse.ArgumentParser(description='Argument list for fp.py')
